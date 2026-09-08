@@ -1,73 +1,25 @@
-# 通过 Github Actions 部署
+# 通过 GitHub Actions 接管既有 Worker
 
-::: warning 注意
-目前只支持 worker 和 pages 的部署。
-有问题请通过 `Github Issues` 反馈，感谢。
+本 fork 使用 `.github/workflows/takeover.yaml` 更新既有 API、Web、Telegram Worker。三个旧部署 workflow 已移除，避免绕过新的审批。
 
-`worker.dev` 域名在中国无法访问，请自定义域名
-:::
+## 构建与演练
 
-## 部署步骤
+提交、推送需要另行授权。获准推送完整改动后，在 Actions 中运行 **Prepare or publish existing Workers**，保持 `publish=false`。无需 Cloudflare 凭据，三个 Worker 都会构建并检查。
 
-### Fork 仓库并启用 Actions
+本地命令和完整步骤见仓库 `deploy/README.md`。工具固定为 Node 24.15.0、pnpm 10.10.0，沿用已有锁文件。配置位于 `deploy/`，产物与报告位于 `ai-agent-takeover/`。构建拒绝本地前端 `.env` 覆盖；部署包排除 source map、环境文件和未知类型，并检查常见凭据格式。模式扫描不能识别任意格式的密钥，仍须审阅改动。
 
-- 在 GitHub fork 本仓库
-- 打开仓库的 `Actions` 页面
-- 找到 `Deploy Backend` 点击 `enable workflow` 启用 `workflow`
-- 如果需要前后端分离并直连 Worker, 找到 `Deploy Frontend` 点击 `enable workflow` 启用 `workflow`
-- 如果需要通过 Page Functions 转发后端请求的 Pages 部署, 找到 `Deploy Frontend with page function` 点击 `enable workflow` 启用 `workflow`
+## 发布步骤（另行授权后执行）
 
-### 配置 Secrets
+1. 在 **Settings → Environments** 创建 `production`，设置必需审批人、仅 main 分支及适用的禁止绕过规则；先验证保护规则。
+2. 仅在该 Environment 的 Secrets 中添加 `CLOUDFLARE_ACCOUNT_ID`、最小权限的 `CLOUDFLARE_API_TOKEN`。不要在仓库或组织级 Secrets 中设置同名发布凭据，也不要配置旧 `BACKEND_TOML`、`FRONTEND_ENV`、`PAGE_TOML`。
+3. 在 **Settings → Secrets and variables → Actions → Variables** 设置仓库变量 `TAKEOVER_RELEASE_ENABLED=true`。开关不能替代环境审批；外部配置均需事先获准。
+4. 在发布窗口复核完整线上配置、旧版本和备份恢复条件，确认具体提交 SHA 和动作。
+5. 从 main 手动运行，选择一个 `target`、设置 `publish=true`。先构建验证，production 审批后发布同次产物；依次发布、验收后端和两个前端。
 
-然后在仓库页面 `Settings` -> `Secrets and variables` -> `Actions` -> `Repository secrets`, 添加以下 `secrets`:
+后端用 `keep_vars` 保留线上变量，首次关闭邮件压缩和已读状态。数据库迁移独立授权、独立执行。真实邮件、Telegram、备份恢复和线上配置等价性不能由本地演练代替。
 
-- 公共 `secrets`
+## 更新策略
 
-   | 名称                    | 说明                                                                                                            |
-   | ----------------------- | --------------------------------------------------------------------------------------------------------------- |
-   | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare 账户 ID, [参考文档](https://developers.cloudflare.com/workers/wrangler/ci-cd/#cloudflare-account-id) |
-   | `CLOUDFLARE_API_TOKEN`  | Cloudflare API Token, [参考文档](https://developers.cloudflare.com/workers/wrangler/ci-cd/#api-token)           |
+文档站 `Deploy Docs` 独立使用 `DOCS_CLOUDFLARE_ACCOUNT_ID` 和 `DOCS_CLOUDFLARE_API_TOKEN`。如需发布文档站，应另行配置专用凭据，不复用邮箱 production 的 Token；邮箱接管不要求启用文档站发布。
 
-- worker 后端 `secrets`
-
-   | 名称                           | 说明                                                                                                                                    |
-   | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-   | `BACKEND_TOML`                 | 后端配置文件，[参考此处](/zh/guide/cli/worker.html#修改-wrangler-toml-配置文件)                                                         |
-   | `DEBUG_MODE`                   | (可选) 是否开启调试模式，配置为 `true` 开启, 默认 worker 部署日志不会输出到 Github Actions 页面，开启后会输出                           |
-   | `BACKEND_USE_MAIL_WASM_PARSER` | (可选) 是否使用 wasm 解析邮件，配置为 `true` 开启, 功能参考 [配置 worker 使用 wasm 解析邮件](/zh/guide/feature/mail_parser_wasm_worker) |
-   | `USE_WORKER_ASSETS`            | (可选) 部署带有前端资源的 Worker, 配置为 `true` 开启                                                                                    |
-
-- pages 前端 `secrets`
-
-   > [!warning] 注意
-   > 如果选择部署带有前端资源的 Worker, 则无须配置这些 `secrets`
-
-   | 名称               | 说明                                                                                                                                                                                      |
-   | ------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-   | `FRONTEND_ENV`     | `Deploy Frontend` workflow 使用的前端配置文件，请复制 `frontend/.env.example` 的内容，并参考 [前端变量说明](/zh/guide/frontend-vars) 修改 |
-   | `FRONTEND_NAME`    | 你在 Cloudflare Pages 创建的项目名称，可通过 [用户界面](https://temp-mail-docs.awsl.uk/zh/guide/ui/pages.html) 或者 [命令行](https://temp-mail-docs.awsl.uk/zh/guide/cli/pages.html) 创建 |
-   | `FRONTEND_BRANCH`  | (可选) pages 部署的分支，可不配置，默认 `production`                                                                                                                                      |
-   | `PAGE_TOML`        | (可选) 仅供 `Deploy Frontend with page function` workflow 使用。通过 page functions 转发后端请求时需要配置，请复制 `pages/wrangler.toml` 的内容，并根据实际情况修改 `service` 字段为你的 worker 后端名称。这个 workflow 会以 Pages 模式构建前端并走同域请求，因此不会读取 `FRONTEND_ENV` |
-   | `TG_FRONTEND_NAME` | (可选) 你在 Cloudflare Pages 创建的项目名称，同 `FRONTEND_NAME`，如果需要 Telegram Mini App 功能，请填写                                                                                  |
-
-### 部署
-
-- 打开仓库的 `Actions` 页面
-- 找到 `Deploy Backend` 点击 `Run workflow` 选择分支手动部署
-- 如果需要前后端分离并直连 Worker, 找到 `Deploy Frontend`，点击 `Run workflow` 选择分支手动部署
-- 如果需要通过 Page Functions 转发后端请求的 Pages 部署, 找到 `Deploy Frontend with page function`，点击 `Run workflow` 手动部署
-
-### 自动更新与 Page Functions 转发
-
-如果你既想通过 `Upstream Sync` 自动更新，又想让 Pages 通过 Page Functions 转发后端请求，请使用 `Deploy Frontend with page function` workflow，而不是 `Deploy Frontend`。
-
-- 先启用 `Upstream Sync`、`Deploy Backend` 和 `Deploy Frontend with page function`
-- 在仓库 `Secrets` 中配置 `PAGE_TOML`，内容复制 `pages/wrangler.toml`
-- 将 `PAGE_TOML` 里的 `service` 改成你的 Worker 后端名称
-- 这个 workflow 会执行 `pnpm build:pages`，前端走同域请求，不读取 `FRONTEND_ENV`
-- 每次 `Upstream Sync` 完成后，如果 `PAGE_TOML` 已配置，`Deploy Frontend with page function` 会自动部署前端
-
-## 如何配置自动更新
-
-1. 打开仓库的 `Actions` 页面，找到 `Upstream Sync`，点击 `enable workflow` 启用 `workflow`
-2. 如果 `Upstream Sync` 运行失败，到仓库主页点击 `Sync` 手动同步即可
+首次保持 Upstream Sync 禁用；代码同步不会触发本流程。不要恢复旧发布入口。后续自动更新另行设计为待审 PR 流程。

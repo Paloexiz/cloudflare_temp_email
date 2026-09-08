@@ -1,0 +1,8 @@
+{
+  "name": "paloexiz-s-email-telegrambot",
+  "compatibility_date": "2026-03-19",
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [{"pattern": "miniapp-mail.paloexiz.me", "custom_domain": true}],
+  "assets": {"directory": "../ai-agent-takeover/telegram", "not_found_handling": "single-page-application"}
+}

@@ -1,4 +1,5 @@
 .DS_Store
+ai-agent-*/
 dist/
 test/
 .vscode/

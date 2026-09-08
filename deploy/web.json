@@ -1,0 +1,8 @@
+{
+  "name": "paloexiz-s-email",
+  "compatibility_date": "2026-03-19",
+  "workers_dev": true,
+  "preview_urls": false,
+  "routes": [{"pattern": "mail.paloexiz.me", "custom_domain": true}],
+  "assets": {"directory": "../ai-agent-takeover/web", "not_found_handling": "single-page-application"}
+}

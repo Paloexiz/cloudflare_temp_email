@@ -1,0 +1,14 @@
+{
+  "name": "paloexiz-s-email-api",
+  "main": "../worker/src/worker.ts",
+  "compatibility_date": "2025-06-14",
+  "compatibility_flags": ["nodejs_compat"],
+  "keep_vars": true,
+  "workers_dev": true,
+  "preview_urls": true,
+  "routes": [{"pattern": "apimail.paloexiz.me", "custom_domain": true}],
+  "d1_databases": [{"binding": "DB", "database_name": "paloexiz-s-email-db", "database_id": "5de99125-134f-43d9-9ffa-aed6b0b386ea"}],
+  "kv_namespaces": [{"binding": "KV", "id": "c8a4ba14c9494cffba23b0c171f92285"}],
+  "observability": {"enabled": true, "head_sampling_rate": 1, "logs": {"enabled": true, "head_sampling_rate": 1, "persist": true, "invocation_logs": true}, "traces": {"enabled": false, "persist": true, "head_sampling_rate": 1}},
+  "vars": {"ENABLE_MAIL_GZIP": false, "ENABLE_MAIL_READ_STATUS": false}
+}

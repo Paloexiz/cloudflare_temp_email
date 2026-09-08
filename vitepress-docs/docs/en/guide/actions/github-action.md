@@ -1,73 +1,25 @@
-# Deploy via GitHub Actions
+# Take over existing Workers with GitHub Actions
 
-::: warning Notice
-Currently only supports Worker and Pages deployment.
-If you encounter any issues, please report them via `GitHub Issues`. Thank you.
+This fork uses `.github/workflows/takeover.yaml` for the existing API, Web and Telegram Workers. The three legacy deployment workflows have been removed to close the alternative publishing path.
 
-The `worker.dev` domain is inaccessible in China, please use a custom domain
-:::
+## Build and rehearse
 
-## Deployment Steps
+Committing and pushing require separate authorization. After the complete change is authorized and pushed, run **Prepare or publish existing Workers** with `publish=false`. No Cloudflare credentials are required; all three Workers are built and checked.
 
-### Fork Repository and Enable Actions
+See repository `deploy/README.md` for local commands and the complete runbook. Use Node 24.15.0, pnpm 10.10.0 and the existing lockfiles. Configuration lives in `deploy/`; bundles and reports live in `ai-agent-takeover/`. Builds reject local frontend `.env` overrides. Bundles exclude source maps, environment files and unknown types, and check common credential patterns. Pattern scanning cannot detect every opaque secret; changes still require review.
 
-- Fork this repository on GitHub
-- Open the `Actions` page of the repository
-- Find `Deploy Backend` and click `enable workflow` to enable the `workflow`
-- If you need separate frontend and backend deployment that talks to Worker directly, find `Deploy Frontend` and click `enable workflow` to enable the `workflow`
-- If you need Pages deployment with Page Functions forwarding backend requests, find `Deploy Frontend with page function` and click `enable workflow` to enable the `workflow`
+## Publish after separate authorization
 
-### Configure Secrets
+1. Create `production` under **Settings → Environments**. Configure required reviewers, main-only deployment branches and applicable bypass restrictions; verify protection first.
+2. Add `CLOUDFLARE_ACCOUNT_ID` and a least-privilege `CLOUDFLARE_API_TOKEN` only to that Environment's Secrets. Do not set matching repository/organization publishing secrets or legacy `BACKEND_TOML`, `FRONTEND_ENV`, `PAGE_TOML` secrets.
+3. Set repository variable `TAKEOVER_RELEASE_ENABLED=true` under **Settings → Secrets and variables → Actions → Variables**. The switch does not replace environment approval; all external configuration needs prior authorization.
+4. During the release window, compare complete live configuration, record old versions, verify backup/recovery prerequisites and approve the exact commit SHA and actions.
+5. Run from main with one `target` and `publish=true`. Build and verify first, then publish the same run's artifact after production approval. Publish and validate the backend first, then each frontend.
 
-Then go to the repository page `Settings` -> `Secrets and variables` -> `Actions` -> `Repository secrets`, and add the following `secrets`:
+The backend uses `keep_vars` to preserve remote variables and initially disables compression and read status. Database migration is separately authorized and executed. Local rehearsal cannot validate real mail delivery, Telegram, production recovery or live configuration equivalence.
 
-- Common `secrets`
+## Update policy
 
-   | Name                    | Description                                                                                                            |
-   | ----------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-   | `CLOUDFLARE_ACCOUNT_ID` | Cloudflare Account ID, [Reference Documentation](https://developers.cloudflare.com/workers/wrangler/ci-cd/#cloudflare-account-id) |
-   | `CLOUDFLARE_API_TOKEN`  | Cloudflare API Token, [Reference Documentation](https://developers.cloudflare.com/workers/wrangler/ci-cd/#api-token)           |
+The separate `Deploy Docs` workflow uses `DOCS_CLOUDFLARE_ACCOUNT_ID` and `DOCS_CLOUDFLARE_API_TOKEN`. If needed, configure dedicated docs credentials separately; never reuse the mailbox production token. Mailbox takeover does not require docs publishing.
 
-- Worker backend `secrets`
-
-   | Name                           | Description                                                                                                                                    |
-   | ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-   | `BACKEND_TOML`                 | Backend configuration file, [see here](/en/guide/cli/worker.html#modify-wrangler-toml-configuration-file)                                      |
-   | `DEBUG_MODE`                   | (Optional) Whether to enable debug mode, set to `true` to enable. By default, worker deployment logs are not output to GitHub Actions page, enabling this will output them |
-   | `BACKEND_USE_MAIL_WASM_PARSER` | (Optional) Whether to use WASM to parse emails, set to `true` to enable. For features, refer to [Configure Worker to use WASM Email Parser](/en/guide/feature/mail_parser_wasm_worker) |
-   | `USE_WORKER_ASSETS`            | (Optional) Deploy Worker with frontend assets, set to `true` to enable                                                                         |
-
-- Pages frontend `secrets`
-
-   > [!warning] Notice
-   > If you choose to deploy Worker with frontend assets, these `secrets` are not required
-
-   | Name               | Description                                                                                                                                                                      |
-   | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-   | `FRONTEND_ENV`     | Frontend configuration file used by the `Deploy Frontend` workflow. Copy the content from `frontend/.env.example` and modify it according to [Frontend Variables](/en/guide/frontend-vars) |
-   | `FRONTEND_NAME`    | The project name you created in Cloudflare Pages, can be created via [UI](https://temp-mail-docs.awsl.uk/en/guide/ui/pages.html) or [Command Line](https://temp-mail-docs.awsl.uk/en/guide/cli/pages.html) |
-   | `FRONTEND_BRANCH`  | (Optional) Branch for pages deployment, can be left unconfigured, defaults to `production`                                                                                      |
-   | `PAGE_TOML`        | (Optional) Used only by the `Deploy Frontend with page function` workflow. Required when using page functions to forward backend requests. Please copy the content from `pages/wrangler.toml` and modify the `service` field to your worker backend name according to actual situation. This workflow builds the frontend in Pages mode and uses same-origin requests, so it does not read `FRONTEND_ENV` |
-   | `TG_FRONTEND_NAME` | (Optional) The project name you created in Cloudflare Pages, same as `FRONTEND_NAME`. Fill this in if you need Telegram Mini App functionality                                  |
-
-### Deploy
-
-- Open the `Actions` page of the repository
-- Find `Deploy Backend` and click `Run workflow` to select a branch and deploy manually
-- If you need separate frontend and backend deployment that talks to Worker directly, find `Deploy Frontend` and click `Run workflow` to select a branch and deploy manually
-- If you need Pages deployment with Page Functions forwarding backend requests, find `Deploy Frontend with page function` and click `Run workflow` to deploy manually
-
-### Auto-Update with Page Functions Forwarding
-
-If you want to use `Upstream Sync` for automatic updates and also let Pages forward backend requests through Page Functions, use the `Deploy Frontend with page function` workflow instead of `Deploy Frontend`.
-
-- Enable `Upstream Sync`, `Deploy Backend`, and `Deploy Frontend with page function`
-- Configure the `PAGE_TOML` repository secret by copying the content of `pages/wrangler.toml`
-- Change the `service` field in `PAGE_TOML` to your Worker backend name
-- This workflow runs `pnpm build:pages`, uses same-origin frontend requests, and does not read `FRONTEND_ENV`
-- After each completed `Upstream Sync`, `Deploy Frontend with page function` deploys the frontend automatically when `PAGE_TOML` is configured
-
-## How to Configure Auto-Update
-
-1. Open the `Actions` page of the repository, find `Upstream Sync`, and click `enable workflow` to enable the `workflow`
-2. If `Upstream Sync` fails, go to the repository homepage and click `Sync` to synchronize manually
+Keep Upstream Sync disabled initially. Syncing code does not trigger this workflow. Do not restore legacy publishing paths. Design a separately reviewed PR-based update flow later if needed.

@@ -10,6 +10,11 @@
 
 ### Features
 
+- fix: |Deployment| Preserve live preview URL switches and backend observability sampling verified during preflight
+
+- feat: |Deployment| Prepare manual takeover of three existing Workers with pinned build tools, artifact verification, legacy-schema compatibility and local migration rehearsal; publishing is disabled by default
+- fix: |Deployment| Remove legacy publishing paths, separate docs credentials and align environment approval instructions; exclude debug artifacts, check credential patterns and validate migration indexes
+
 - feat: |Frontend| Add the `VITE_DEFAULT_LANG` build variable and support overriding frontend settings through runtime configuration in `index.html`
 - feat: |Mail| Add optional read/unread status with click-to-read and manual status switching
 - feat: |Admin| Add D1 storage capacity details to the database page, with persistent Free and Workers Paid plan selection and a comparison between the current database size and capacity limit
