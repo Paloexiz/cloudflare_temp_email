@@ -10,6 +10,8 @@
 
 ### Features
 
+- fix: |邮件解析| 恢复后端 WASM 解析，保留 PostalMime 回退；发布包包含并校验 WASM 模块，增加中文编码邮件与附件演练
+
 - feat: |部署| 拆分 Prepare 与 Publish 工作流，默认检查并发布三个目标；保留单目标发布、production 审批和 main 分支限制
 
 - fix: |部署| 根据发布前现场核验固定三个 Worker 的预览 URL 开关及后端日志采样设置

@@ -1,6 +1,9 @@
 # mail-parser-wasm-worker
 
 > [!NOTE]
+> This repository's existing-Worker release flow enables this component by default (pinned to 0.2.2), building, validating and publishing it with `backend`; no additional Worker is needed. The manual installation and uncommenting steps below apply to upstream versions where it is not enabled. Do not repeat them here. PostalMime remains the fallback on WASM parsing errors. Backend releases must include the generated `.wasm` module alongside `worker.js`.
+
+> [!NOTE]
 > If you are using webhook forwarding or telegram bot to receive emails, but the email content is garbled or cannot be parsed, and you have higher requirements for parsing, you can use this feature.
 
 ## UI Deployment

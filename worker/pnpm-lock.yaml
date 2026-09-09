@@ -28,6 +28,9 @@ importers:
       jsonpath-plus:
         specifier: ^10.4.0
         version: 10.4.0
+      mail-parser-wasm-worker:
+        specifier: 0.2.2
+        version: 0.2.2
       mimetext:
         specifier: ^3.0.28
         version: 3.0.28
@@ -1341,6 +1344,9 @@ packages:
   loose-envify@1.4.0:
     resolution: {integrity: sha512-lyuxPGr/Wfhrlem2CL/UcnUc1zcqKAImBDzukY7Y5F/yQiNdko6+fRLevlw1HgMySw7f611UIY408EtxRSoK3Q==}
     hasBin: true
+
+  mail-parser-wasm-worker@0.2.2:
+    resolution: {integrity: sha512-uiMjL3tynRt6GUuF9eIrFJbA0bMXHYzsn/+y/zUf7X2MvKEUR0mnERPtw4i3HKaW+ZbcvH6xV5VFt/JukXQD1Q==}
 
   mime-db@1.52.0:
     resolution: {integrity: sha512-sPU4uV7dYlvtWJxwwxHD0PuihVNiE7TyAbQ5SWxDCB9mUYvOgroQOwYQQOKPJ8CIbE+1ETVlOoK1UC2nU3gYvg==}
@@ -3261,6 +3267,8 @@ snapshots:
     dependencies:
       js-tokens: 4.0.0
     optional: true
+
+  mail-parser-wasm-worker@0.2.2: {}
 
   mime-db@1.52.0: {}
 

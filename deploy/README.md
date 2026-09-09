@@ -18,6 +18,8 @@ GPT-5.6-Terra 第二轮独立复审：**通过（限本地接管准备）**。�
 
 Node 固定为 24.15.0，pnpm 固定为 10.10.0，使用仓库已有锁文件；当前后端锁定 Wrangler 4.124.0。前端 API 为 `https://apimail.paloexiz.me`，默认语言 zh，应用分析 Token 为空。不要通过浏览本地构建页面对生产 API 进行写入测试。
 
+后端默认启用 `mail-parser-wasm-worker@0.2.2`，解析失败时回退 PostalMime。Prepare 将生成的 `.wasm` 与 `worker.js` 一起打包，Verify 检查模块有效性及哈希；演练通过打包后的 API 验证中文编码主题、正文和附件。它属于 backend，无需第四个 Worker。
+
 ## 重新执行本地检查
 
 在仓库根目录用 PowerShell 或 Bash 执行：
@@ -69,6 +71,8 @@ GitHub Actions 现在提供两个独立入口，旧的 `Prepare or publish exist
 工作流不会自动迁移 D1 或切换 DNS。后续涉及数据库迁移时，仍需另行安排备份、恢复窗口与兼容性验证。上游自动同步保持禁用。
 
 ## Build and publish
+
+The backend includes `mail-parser-wasm-worker@0.2.2` with PostalMime fallback. Prepare packages its `.wasm` sidecar, Verify checks its validity and hash, and rehearsal tests encoded Chinese mail and an attachment through the packaged API. No additional Worker is required.
 
 - Run **Prepare existing Workers** for build, rehearsal and artifact validation only; it receives no deployment secrets.
 - Run **Publish existing Workers** on `main` and approve the production deployment. The default target is `all`, publishing backend, web and telegram in order; individual targets remain available. A failure stops later targets without rolling back successful ones. It calls Prepare at the same commit and publishes the verified artifact from that run. There is no `publish` boolean or manual artifact selection.

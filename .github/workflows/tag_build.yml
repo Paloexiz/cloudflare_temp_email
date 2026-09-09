@@ -85,7 +85,10 @@ jobs:
         run: cd worker && cp wrangler.toml.template wrangler.toml
 
       - name: Build Backend
-        run: cd worker && pnpm install --no-frozen-lockfile && pnpm build
+        run: |
+          # Keep the standalone worker.js release asset usable without a WASM sidecar.
+          git apply --reverse .github/config/mail-parser-wasm-worker.patch
+          cd worker && pnpm install --no-frozen-lockfile && pnpm build
 
       - name: Move worker.js
         run: cd worker/dist && mv worker.js ../
@@ -94,9 +97,7 @@ jobs:
         run: |
           cd worker
           echo "Using mail-parser-wasm-worker"
-          pnpm add mail-parser-wasm-worker
           git apply ../.github/config/mail-parser-wasm-worker.patch
-          echo "Applied mail-parser-wasm-worker patch"
           pnpm build
           zip -r worker-with-wasm-mail-parser.zip dist/worker.js dist/*.wasm
 

@@ -42,6 +42,9 @@ for (const target of ['backend', 'web', 'telegram']) {
     mkdirSync(join(dir, 'code'));
     const code = readFileSync(join(output, target, 'worker.js'), 'utf8').replace(/^\/\/# sourceMappingURL=.*$/gm, '');
     writeFileSync(join(dir, 'code/worker.js'), code);
+    const wasmFiles = readdirSync(join(output, target)).filter(name => name.endsWith('.wasm'));
+    assert.ok(wasmFiles.length > 0, 'Backend WASM parser module missing');
+    for (const name of wasmFiles) cpSync(join(output, target, name), join(dir, 'code', name));
   } else cpSync(join(output, target), join(dir, 'assets'), { recursive: true });
   const config = JSON.parse(readFileSync(join(root, 'deploy', `${target}.json`), 'utf8'));
   if (target === 'backend') {

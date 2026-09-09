@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { createRequire } from 'node:module';
-import { readFileSync, writeFileSync, realpathSync } from 'node:fs';
+import { readFileSync, writeFileSync, realpathSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createHash, createHmac } from 'node:crypto';
 
@@ -8,6 +8,7 @@ import { createHash, createHmac } from 'node:crypto';
 const wranglerRequire = createRequire(realpathSync('worker/node_modules/wrangler/package.json'));
 const { Miniflare, convertV4MiniflareOptions } = wranglerRequire('miniflare');
 const sent = [];
+const runtimeLogs = [];
 const password = 'ai-agent-synthetic-password';
 const secret = 'ai-agent-synthetic-jwt';
 const hash = s => createHash('sha256').update(s).digest('hex');
@@ -16,7 +17,13 @@ const token = payload => {
   return content + '.' + createHmac('sha256', secret).update(content).digest('base64url');
 };
 const mf = new Miniflare(convertV4MiniflareOptions({
-  modules: true, scriptPath: resolve('ai-agent-takeover/bundle/backend/code/worker.js'),
+  modulesRoot: resolve('ai-agent-takeover/bundle/backend/code'),
+  modules: [
+    {type: 'ESModule', path: resolve('ai-agent-takeover/bundle/backend/code/worker.js')},
+    ...readdirSync('ai-agent-takeover/bundle/backend/code').filter(name => name.endsWith('.wasm'))
+      .map(name => ({type: 'CompiledWasm', path: resolve('ai-agent-takeover/bundle/backend/code', name)}))
+  ],
+  handleStructuredLogs: log => runtimeLogs.push(JSON.stringify(log)),
   compatibilityDate: '2025-06-14', compatibilityFlags: ['nodejs_compat'],
   d1Databases: ['DB'], kvNamespaces: ['KV'],
   bindings: { JWT_SECRET: secret, DOMAINS: ['test.example.com'], DEFAULT_DOMAINS: ['test.example.com'],
@@ -52,6 +59,24 @@ try {
   await db.prepare('INSERT INTO sendbox(id,address,raw) VALUES (1,?,?)').bind(mailbox,raw).run();
   await db.prepare('INSERT INTO users(id,user_email,password) VALUES (1,?,?)').bind('owner@test.example.com',hash(password)).run();
   await db.exec('INSERT INTO users_address(user_id,address_id) VALUES (1,1);');
+  const mime = [
+    'From: sender@test.example.com', 'To: legacy@test.example.com',
+    'Subject: =?UTF-8?B?' + Buffer.from('解析测试').toString('base64') + '?=',
+    'MIME-Version: 1.0', 'Content-Type: multipart/mixed; boundary="ai-agent-mime"', '',
+    '--ai-agent-mime', 'Content-Type: text/plain; charset=utf-8', 'Content-Transfer-Encoding: base64', '',
+    Buffer.from('中文邮件正文').toString('base64'),
+    '--ai-agent-mime', 'Content-Type: application/octet-stream; name="sample.bin"',
+    'Content-Disposition: attachment; filename="sample.bin"', 'Content-Transfer-Encoding: base64', '',
+    'AAEC/w==', '--ai-agent-mime--', ''
+  ].join('\r\n');
+  await db.prepare('INSERT INTO raw_mails(id,address,raw,message_id) VALUES (2,?,?,?)').bind(mailbox,mime,'<wasm@test>').run();
+  const parsed = await call('/api/parsed_mail/2', {headers: mailboxHeaders});
+  assert.equal(parsed.subject, '解析测试');
+  assert.equal(parsed.text.trim(), '中文邮件正文');
+  assert.equal(parsed.attachments[0].filename, 'sample.bin');
+  assert.equal(parsed.attachments[0].size, 4);
+  assert.ok(!runtimeLogs.some(log => log.includes('Failed use mail-parser-wasm-worker')), 'WASM parser fell back during MIME test');
+  checks.push('Packaged WASM parser: encoded Chinese subject/body and binary attachment via parsed-mail API');
   const columns = async () => (await db.prepare('PRAGMA table_info(raw_mails)').all()).results.map(c=>c.name);
   assert.ok(!(await columns()).includes('raw_blob'));
   assert.ok(!(await columns()).includes('is_unread'));

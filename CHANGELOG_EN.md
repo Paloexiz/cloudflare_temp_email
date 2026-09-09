@@ -10,6 +10,8 @@
 
 ### Features
 
+- fix: |Mail parsing| Restore backend WASM parsing with PostalMime fallback; package and validate WASM modules and rehearse encoded Chinese mail with attachments
+
 - feat: |Deployment| Separate Prepare and Publish workflows, default to all three targets, and preserve individual releases, production approval and main-only releases
 
 - fix: |Deployment| Preserve live preview URL switches and backend observability sampling verified during preflight

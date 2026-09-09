@@ -1,6 +1,9 @@
 # mail-parser-wasm-worker
 
 > [!NOTE]
+> 本仓库的既有 Worker 发布流程已默认启用此组件（锁定 0.2.2），随 `backend` 一起构建、校验和发布，无需新增 Worker。下面的手工安装和取消注释步骤适用于尚未启用的上游版本，本仓库无需重复执行。WASM 解析失败时仍回退到 PostalMime；发布后端时必须同时携带构建产生的 `.wasm` 模块，不能只上传 `worker.js`。
+
+> [!NOTE]
 > 如果你使用了 webhook 转发，或者 telegram bot 接受邮件，但是邮件内容是乱码，或者无法解析，你对解析的需要更高的要求，可以使用这个功能。
 
 ## UI 部署

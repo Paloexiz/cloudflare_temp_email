@@ -5,7 +5,10 @@ import { createHash } from 'node:crypto';
 
 const base = resolve('ai-agent-takeover/bundle');
 function checkArtifact(path, bytes) {
-  assert.ok(/^(backend\/code\/worker\.js|(backend|web|telegram)\/wrangler\.json|(web|telegram)\/assets\/(?:[\w-]+\/)*[\w.-]+\.(?:html|js|css|wasm|webmanifest|png|ico|svg|woff2?))$/.test(path), `Unexpected release file: ${path}`);
+  assert.ok(/^(backend\/code\/(?:worker\.js|[\w-]+\.wasm)|(backend|web|telegram)\/wrangler\.json|(web|telegram)\/assets\/(?:[\w-]+\/)*[\w.-]+\.(?:html|js|css|wasm|webmanifest|png|ico|svg|woff2?))$/.test(path), `Unexpected release file: ${path}`);
+  if (path.startsWith('backend/code/') && path.endsWith('.wasm')) {
+    assert.ok(WebAssembly.validate(bytes), 'Invalid backend WASM module');
+  }
   const text = bytes.toString('utf8');
   // Pattern checks are a backstop, not proof that arbitrary opaque secrets are absent.
   const sensitive = [
@@ -30,6 +33,7 @@ const actual = entries
   .filter(e => e.isFile()).map(e => relative(base, resolve(e.parentPath, e.name)).replaceAll('\\', '/'))
   .filter(p => p !== 'manifest.json').sort();
 assert.deepEqual(actual, Object.keys(manifest.hashes).sort(), 'Bundle file set changed');
+assert.ok(actual.some(path => path.startsWith('backend/code/') && path.endsWith('.wasm')), 'Backend WASM parser module missing');
 if (process.env.GITHUB_SHA) assert.equal(manifest.sourceCommit, process.env.GITHUB_SHA);
 for (const [path, hash] of Object.entries(manifest.hashes)) {
   assert.ok(!relative(base, resolve(base, path)).startsWith('..'), 'Path escapes bundle');
