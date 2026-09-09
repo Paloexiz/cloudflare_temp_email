@@ -53,17 +53,24 @@ node deploy/verify.mjs
 uv run python deploy/backup-verify.py <private-snapshot.json>
 ```
 
-## 获得发布授权后如何接管
+## 日常构建与发布
 
-以下是待执行步骤，本次未执行。没有新的技术资料需要用户补交；下一次需要的是针对明确发布对象和窗口的授权。
+GitHub Actions 现在提供两个独立入口，旧的 `Prepare or publish existing Workers` 已移除：
 
-1. 审阅本地 diff，将完整改动提交为确定 SHA。获准后推送；首次仅运行 `Prepare or publish existing Workers`，保持 `publish=false`。三个旧部署 workflow 已从本地删除；确认完整删除随提交进入 main，不能恢复旧发布入口。
-2. 检查该 SHA 的 CI 构建、演练及产物；任一失败都先修复，不进入生产阶段。
-3. 在单独授权范围内创建 GitHub `production` Environment，设置审批人、仅 main 分支限制及适用的禁止绕过规则；只在该 Environment 中设置 `CLOUDFLARE_ACCOUNT_ID`、最小必要权限的 `CLOUDFLARE_API_TOKEN`，不向仓库/组织级 Secrets 放同名凭据。先验证环境限制，最后才设置仓库变量 `TAKEOVER_RELEASE_ENABLED=true`。文档站流程已改用独立 `DOCS_CLOUDFLARE_ACCOUNT_ID` / `DOCS_CLOUDFLARE_API_TOKEN` 名称，不为它配置或复用邮箱发布 Token。本地流程不会创建任何凭据。
-4. 在切换窗口重新只读核验三个 Worker 的版本、域名、变量、D1/KV 绑定、Email Routing，以及 compatibility date/flags、workers.dev、预览 URL、observability/日志采样和其它触发器；逐项对照 `deploy/*.json`。当前文件是待发布候选配置，本地完全匹配检查不证明线上等价；有差异先停止并修订、重建、复审。记录完整旧版本 ID，导出 D1 备份，验证可读性和恢复办法，记录可用 Time Travel bookmark。合成演练不能替代这一步。
-5. 明确批准此次 SHA、目标及动作后，手动选择 `target=backend`、`publish=true`；环境审批通过才发布。发布只消费该次构建并校验过的 bundle，不重建。暂不执行数据库迁移。
-6. 在旧 schema 上验证后端健康、旧凭据、真实收发邮件及现有前端。确认通过后，分别发布 `web`、`telegram`，每个目标都单独验证。部署失败时按记录的旧版本回滚对应 Worker。
-7. 数据库升级是另一个明确动作：先确认备份、恢复窗口和写入影响，再通过管理页面数据库迁移功能升到 v0.0.8。复查版本、行数和邮件原文。应用回滚不等于数据库回滚；涉及恢复数据库时应评估备份之后的新邮件，不能直接覆盖。
-8. 完成实际验收前保持两个新邮件功能关闭。上游同步继续禁用，后续再单独设计待审 PR 更新流程。
+- **Prepare existing Workers**（`prepare.yaml`）：手动运行，构建、演练并校验三个 Worker，上传保留 7 天的产物；不接收发布密钥，不部署。
+- **Publish existing Workers**（`publish.yaml`）：选择 `main`，`target` 默认 `all`，依次发布 `backend`、`web`、`telegram`；也可单独选择一个目标。无需再填写 `publish` 开关。任一目标失败即停止后续发布，已成功的目标不会自动回滚。自动调用同一提交的 Prepare，成功后等待 production 审批，再发布本次运行中的已校验产物；不用先手动运行 Prepare，也不用填写产物编号。
 
-流程不会自动迁移 D1，不会切换 DNS，不会把敏感普通变量自动改成 Secret。`publish=true` 仍需 main 分支、显式发布开关以及预先配置好的 production 审批；开关本身不能替代环境保护。
+更新代码时，先将审阅过的改动合入 `main`，再启动 Publish。重新运行旧记录使用原提交，不会获取新的 `main`。发布仍要求 `TAKEOVER_RELEASE_ENABLED=true`、main 分支和 production 环境审批；发布队列沿用 `email-production`，不会取消正在进行的发布。
+
+发布凭据只放在 production Environment 的 `CLOUDFLARE_ACCOUNT_ID` 和 `CLOUDFLARE_API_TOKEN` 中。新生成 Token 后须同步更新 Secret，值为原文字符串，不加引号或数组。Prepare 不继承这些 Secrets。文档站使用独立的 `DOCS_CLOUDFLARE_*` 凭据。
+
+首次接管已完成；上文的本地验证结论是历史记录。用户已确认 Worker 凭据及数据库密码更换并验证通过。2026-09-09，新发布 Token 已通过同版本前端发布复测；本次私有备份已按用户要求删除，原备份路径不能再用于恢复。
+
+工作流不会自动迁移 D1 或切换 DNS。后续涉及数据库迁移时，仍需另行安排备份、恢复窗口与兼容性验证。上游自动同步保持禁用。
+
+## Build and publish
+
+- Run **Prepare existing Workers** for build, rehearsal and artifact validation only; it receives no deployment secrets.
+- Run **Publish existing Workers** on `main` and approve the production deployment. The default target is `all`, publishing backend, web and telegram in order; individual targets remain available. A failure stops later targets without rolling back successful ones. It calls Prepare at the same commit and publishes the verified artifact from that run. There is no `publish` boolean or manual artifact selection.
+- Merge new code into `main` before starting a new release. Re-running an old run uses its original commit. The release flag, production protection and shared deployment queue remain in place.
+- Keep Cloudflare credentials only in the production environment. Replacing a token requires updating its Secret with the raw token. Database migrations and backups remain separate operations.

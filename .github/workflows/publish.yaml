@@ -1,0 +1,67 @@
+name: Publish existing Workers
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: Workers to publish (all publishes backend, web and telegram)
+        type: choice
+        options: [all, backend, web, telegram]
+        default: all
+
+permissions:
+  contents: read
+
+concurrency:
+  group: email-production
+  cancel-in-progress: false
+
+env:
+  WRANGLER_SEND_METRICS: 'false'
+
+jobs:
+  build:
+    if: vars.TAKEOVER_RELEASE_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    uses: ./.github/workflows/prepare.yaml
+
+  publish:
+    needs: build
+    # This repository variable is intentionally not created by local preparation.
+    if: vars.TAKEOVER_RELEASE_ENABLED == 'true' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    environment: production
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.15.0'
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: '10.10.0'
+      - run: pnpm --dir worker install --frozen-lockfile
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4
+        with:
+          name: email-workers-${{ github.sha }}
+          path: ai-agent-takeover/bundle
+      - run: node deploy/verify.mjs
+      - name: Publish verified, prebuilt Workers
+        env:
+          TARGET: ${{ inputs.target }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+        run: |
+          case "$TARGET" in
+            all) targets=(backend web telegram) ;;
+            backend|web|telegram) targets=("$TARGET") ;;
+            *) exit 1 ;;
+          esac
+          test -n "$CLOUDFLARE_ACCOUNT_ID"
+          test -n "$CLOUDFLARE_API_TOKEN"
+          for target in "${targets[@]}"; do
+            echo "Publishing $target"
+            node worker/node_modules/wrangler/bin/wrangler.js deploy --config "ai-agent-takeover/bundle/$target/wrangler.json"
+          done

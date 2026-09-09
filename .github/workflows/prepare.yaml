@@ -1,0 +1,45 @@
+name: Prepare existing Workers
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+env:
+  WRANGLER_SEND_METRICS: 'false'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '24.15.0'
+      - uses: pnpm/action-setup@f40ffcd9367d9f12939873eb1018b921a783ffaa # v4
+        with:
+          version: '10.10.0'
+      - run: pnpm --dir worker install --frozen-lockfile
+      - run: pnpm --dir frontend install --frozen-lockfile
+      - run: node deploy/publish-workflow.test.mjs
+      - run: node deploy/prepare.mjs
+      - run: node deploy/rehearse.mjs
+      - run: node deploy/verify.mjs
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: email-workers-${{ github.sha }}
+          path: ai-agent-takeover/bundle
+          retention-days: 7
+          if-no-files-found: error
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: email-rehearsal-${{ github.sha }}
+          path: ai-agent-takeover/rehearsal.json
+          retention-days: 7
+          if-no-files-found: error

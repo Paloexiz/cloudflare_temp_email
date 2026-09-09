@@ -10,6 +10,8 @@
 
 ### Features
 
+- feat: |Deployment| Separate Prepare and Publish workflows, default to all three targets, and preserve individual releases, production approval and main-only releases
+
 - fix: |Deployment| Preserve live preview URL switches and backend observability sampling verified during preflight
 
 - feat: |Deployment| Prepare manual takeover of three existing Workers with pinned build tools, artifact verification, legacy-schema compatibility and local migration rehearsal; publishing is disabled by default

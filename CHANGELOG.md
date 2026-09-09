@@ -10,6 +10,8 @@
 
 ### Features
 
+- feat: |部署| 拆分 Prepare 与 Publish 工作流，默认检查并发布三个目标；保留单目标发布、production 审批和 main 分支限制
+
 - fix: |部署| 根据发布前现场核验固定三个 Worker 的预览 URL 开关及后端日志采样设置
 
 - feat: |部署| 准备三个既有 Worker 的手动接管流程，固定构建工具并校验产物，加入旧 schema 兼容性及本地迁移演练；发布默认关闭
